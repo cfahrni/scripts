@@ -31,6 +31,15 @@ last_valuta_date = last_valuta_date + timedelta(days=5)
 print(f'First Valuta Date: {first_valuta_date.strftime("%Y-%m-%d")}')
 print(f'Last Valuta Date: {last_valuta_date.strftime("%Y-%m-%d")}')
 
+# only use rows with negative values = withdrawals
+df = df[df["Credit/Debit Amount"] < 0]
+
+# check how many duplicate values are in given csv
+df_duplicates = df.duplicated(subset=["Credit/Debit Amount"]).sum()
+
+# Print duplicate count
+print(f'Duplicates: {df_duplicates}')
+
 # Set the API parameters
 params = {
     'start': first_valuta_date.strftime('%Y-%m-%d'),
