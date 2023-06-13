@@ -66,7 +66,7 @@ if api_response.status_code == 200:
     api_df.to_html('firefly.html', index=False)
 
     # Print the first 5 rows of the API DataFrame
-    #print(api_df.head())
+    # print(api_df.head())
 
     # check how many duplicate values are in given csv
     api_df_duplicates = api_df.duplicated(subset=["amount"]).sum()
@@ -74,8 +74,18 @@ if api_response.status_code == 200:
     # Print duplicate count
     print(f'Firefly Duplicates: {api_df_duplicates}')
 
-    # use isin() to check if the transaction already exists in firefly
-    diff_df = df[~df['Credit/Debit Amount'].isin(api_df['amount'])]
+    # Create a dictionary to track counts of values in both DataFrames
+    df_counts = df['Credit/Debit Amount'].value_counts().to_dict()
+    api_df_counts = api_df['amount'].value_counts().to_dict()
+
+    # Find missing rows from df in api_df
+    missing_rows = []
+    for key, value in df_counts.items():
+        if key not in api_df_counts or api_df_counts[key] < value:
+            missing_rows.extend([key] * (value - api_df_counts.get(key, 0)))
+
+    # Create a new DataFrame for missing transactions
+    diff_df = df[df['Credit/Debit Amount'].isin(missing_rows)]
 
     # only show needed columns
     diff_df = diff_df[['Valuta Date', 'Text', 'Credit/Debit Amount']]
