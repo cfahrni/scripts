@@ -38,7 +38,7 @@ df = df[df["Credit/Debit Amount"] < 0]
 df_duplicates = df.duplicated(subset=["Credit/Debit Amount"]).sum()
 
 # Print duplicate count
-print(f'Duplicates: {df_duplicates}')
+print(f'Raiffeisen Duplicates: {df_duplicates}')
 
 # Set the API parameters
 params = {
@@ -62,8 +62,17 @@ if api_response.status_code == 200:
     # Load the API response into a new Pandas DataFrame
     api_df = pd.read_csv(BytesIO(api_response.content))
 
+    # save all firefly-transactions to html
+    api_df.to_html('firefly.html', index=False)
+
     # Print the first 5 rows of the API DataFrame
     #print(api_df.head())
+
+    # check how many duplicate values are in given csv
+    api_df_duplicates = api_df.duplicated(subset=["amount"]).sum()
+
+    # Print duplicate count
+    print(f'Firefly Duplicates: {api_df_duplicates}')
 
     # use isin() to check if the transaction already exists in firefly
     diff_df = df[~df['Credit/Debit Amount'].isin(api_df['amount'])]
