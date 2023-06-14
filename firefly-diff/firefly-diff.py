@@ -13,11 +13,11 @@ account_id = '<id>'
 filename = sys.argv[1]
 
 # Load the CSV file into a Pandas DataFrame
-df = pd.read_csv(filename, encoding='ISO-8859-1', delimiter=';')
+raiffeisen_df = pd.read_csv(filename, encoding='ISO-8859-1', delimiter=';')
 
 # Get the first and last "Valuta Date" values
-first_valuta_date = df.loc[0, 'Valuta Date']
-last_valuta_date = df.loc[df.index[-1], 'Valuta Date']
+first_valuta_date = raiffeisen_df.loc[0, 'Valuta Date']
+last_valuta_date = raiffeisen_df.loc[raiffeisen_df.index[-1], 'Valuta Date']
 
 # Convert the first and last "Valuta Date" values to datetime objects
 first_valuta_date = datetime.strptime(first_valuta_date, '%Y-%m-%d %H:%M:%S.%f')
@@ -32,13 +32,7 @@ print(f'First Valuta Date: {first_valuta_date.strftime("%Y-%m-%d")}')
 print(f'Last Valuta Date: {last_valuta_date.strftime("%Y-%m-%d")}')
 
 # only use rows with negative values = withdrawals
-df = df[df["Credit/Debit Amount"] < 0]
-
-# check how many duplicate values are in given csv
-df_duplicates = df.duplicated(subset=["Credit/Debit Amount"]).sum()
-
-# Print duplicate count
-print(f'Raiffeisen Duplicates: {df_duplicates}')
+raiffeisen_df = raiffeisen_df[raiffeisen_df["Credit/Debit Amount"] < 0]
 
 # Set the API parameters
 params = {
@@ -60,45 +54,45 @@ api_response = requests.get(firefly_api, params=params, headers=headers)
 if api_response.status_code == 200:
 
     # Load the API response into a new Pandas DataFrame
-    api_df = pd.read_csv(BytesIO(api_response.content))
-
-    # save all firefly-transactions to html
-    api_df.to_html('firefly.html', index=False)
+    firefly_df = pd.read_csv(BytesIO(api_response.content))
 
     # Print the first 5 rows of the API DataFrame
-    # print(api_df.head())
-
-    # check how many duplicate values are in given csv
-    api_df_duplicates = api_df.duplicated(subset=["amount"]).sum()
-
-    # Print duplicate count
-    print(f'Firefly Duplicates: {api_df_duplicates}')
+    # print(firefly_df.head())
 
     # Create a dictionary to track counts of values in both DataFrames
-    df_counts = df['Credit/Debit Amount'].value_counts().to_dict()
-    api_df_counts = api_df['amount'].value_counts().to_dict()
+    raiffeisen_df_counts = raiffeisen_df['Credit/Debit Amount'].value_counts().to_dict()
+    firefly_df_counts = firefly_df['amount'].value_counts().to_dict()
 
-    # Find missing rows from df in api_df
-    missing_rows = []
-    for key, value in df_counts.items():
-        if key not in api_df_counts or api_df_counts[key] < value:
-            missing_rows.extend([key] * (value - api_df_counts.get(key, 0)))
+    # Find missing rows from raiffeisen_df in firefly_df
+    raiffeisen_missing_rows = []
+    for key, value in raiffeisen_df_counts.items():
+        if key not in firefly_df_counts or firefly_df_counts[key] < value:
+            raiffeisen_missing_rows.extend([key] * (value - firefly_df_counts.get(key, 0)))
 
     # Create a new DataFrame for missing transactions
-    diff_df = df[df['Credit/Debit Amount'].isin(missing_rows)]
+    raiffeisen_diff_df = raiffeisen_df[raiffeisen_df['Credit/Debit Amount'].isin(raiffeisen_missing_rows)]
+
+    # Find missing rows from firefly_df in raiffeisen_df
+    firefly_missing_rows = []
+    for key, value in firefly_df_counts.items():
+        if key not in raiffeisen_df_counts:
+            firefly_missing_rows.extend([key] * (value - raiffeisen_df_counts.get(key, 0)))
+
+    # Create a new DataFrame for missing transactions
+    firefly_diff_df = firefly_df[firefly_df['amount'].isin(firefly_missing_rows)]
 
     # only show needed columns
-    diff_df = diff_df[['Valuta Date', 'Text', 'Credit/Debit Amount']]
+    raiffeisen_diff_df = raiffeisen_diff_df[['Valuta Date', 'Text', 'Credit/Debit Amount']]
+    firefly_diff_df = firefly_diff_df[['date', 'description', 'amount', 'type', 'group_title']]
 
     # set justify option to left for both column headers
     pd.set_option('colheader_justify', 'left')
 
-    # print the number of missing transactions
-    print(f'Missing Transactions: {len(diff_df)}')
-
     # save csv to html file
-    diff_df.to_html('index.html', index=False)
+    raiffeisen_diff_df.to_html('missing_in_firefly.html', index=False)
+    firefly_diff_df.to_html('missing_in_raiffeisen.html', index=False)
 
 else:
     # Print an error message if the API request was not successful
     print(f'API request failed with status code {api_response.status_code}')
+
